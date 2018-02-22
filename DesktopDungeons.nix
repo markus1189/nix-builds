@@ -1,5 +1,8 @@
 { pkgs ? import <nixpkgs> { system = "i686-linux";}
+, savesDir
 }: with pkgs;
+
+assert lib.pathExists savesDir;
 
 stdenv.mkDerivation rec {
   name = "desktop-dungeons";
@@ -14,7 +17,11 @@ stdenv.mkDerivation rec {
     glib
     gdk_pixbuf
     gtk2
+    alsaLib
+    libpulseaudio
   ];
+
+  phases = [ "unpackPhase" "installPhase" ];
 
   ldPath = stdenv.lib.makeLibraryPath buildInputs;
 
@@ -28,9 +35,11 @@ stdenv.mkDerivation rec {
              --set-rpath "$out/DesktopDungeons_Data/Plugins/x86:${ldPath}" \
              DesktopDungeons.x86
 
+    rm Install.sh DesktopDungeons.sh
+
     mv * $out/
 
-    # TODO find a better way, according to support there is no configuration possible
-    ln -s /tmp/DDSaves $out/DesktopDungeons_Data/Saves
+    echo "Linking ${savesDir} to hold savegame files"
+    ln -s ${savesDir} $out/DesktopDungeons_Data/Saves
   '';
 }
