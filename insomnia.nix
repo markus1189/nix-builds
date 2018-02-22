@@ -18,7 +18,6 @@ stdenv.mkDerivation rec {
     cairo
     cups
     dbus_daemon.lib
-    dpkg
     expat
     fontconfig
     freetype
