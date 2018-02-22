@@ -49,26 +49,31 @@ stdenv.mkDerivation rec {
   ldPath = stdenv.lib.makeLibraryPath buildInputs;
 
   installPhase = ''
-    mkdir -p $out
-    mv * $out/
+    mkdir -p $out/share/zoom $out/bin
+    mv * $out/share/zoom/
 
-    for lib in $(find $out -name "*.so.*" -not -type l) platforms/*; do
-      patchelf --set-rpath "$out:$out/platforms:${ldPath}" $lib
+  '';
+
+  preFixup = ''
+    for lib in $(find $out/share/zoom -name "*.so.*" -not -type l) platforms/*; do
+      patchelf --set-rpath "$out/share/zoom:$out/share/zoom/platforms:${ldPath}" $lib
     done
 
-    for lib in $out/platforms/*; do
-      patchelf --set-rpath "$out:$out/platforms:${ldPath}" $lib
+    for lib in $out/share/zoom/platforms/*; do
+      patchelf --set-rpath "$out/share/zoom:$out/share/zoom/platforms:${ldPath}" $lib
     done
 
-    for bin in $(find $out -executable -not '(' -name "*.so*" -or -name "*.pcm" -or -name "*.sh" -or -name "zoomlinux" ')' -type f); do
+    for bin in $(find $out/share/zoom -executable -not '(' -name "*.so*" -or -name "*.pcm" -or -name "*.sh" -or -name "zoomlinux" ')' -type f); do
       patchelf --set-interpreter $(cat $NIX_CC/nix-support/dynamic-linker) \
-               --set-rpath "$out:$out/platforms:${ldPath}" \
+               --set-rpath "$out/share/zoom:$out/share/zoom/platforms:${ldPath}" \
                $bin
     done
 
-    rm $out/zoom.sh
+    rm $out/share/zoom/zoom.sh
 
-    for bin in $out/zoom $out/zopen; do
+    ln -s $out/share/zoom/zoom $out/bin/zoom
+
+    for bin in $out/bin/*; do
       wrapProgram $bin --set QT_XKB_CONFIG_ROOT "${xorg.xkeyboardconfig}/share/X11/xkb"
     done
   '';
