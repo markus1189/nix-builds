@@ -1,18 +1,7 @@
 { pkgs ? import <nixpkgs> {}}: with pkgs;
 
-stdenv.mkDerivation rec {
-  name = "insomnia-${version}";
-  version = "5.14.7";
-  src = fetchurl {
-    url = "https://github.com/getinsomnia/insomnia/releases/download/v${version}/insomnia_${version}_amd64.deb";
-    sha256 = "1y6bn9kaxxplzyv7jjrcsfkrjnivjqdk5mbdp8vz32hv2bmdvzzy";
-  };
-
-  buildInputs = [ dpkg ];
-
-  unpackPhase = "dpkg-deb -x $src .";
-
-  ldPath = stdenv.lib.makeLibraryPath (with pkgs.xorg; [
+let
+  libPath = stdenv.lib.makeLibraryPath (with pkgs.xorg; [
     alsaLib
     atk
     cairo
@@ -29,7 +18,6 @@ stdenv.mkDerivation rec {
     nspr
     nss
     stdenv.cc.cc.lib
-    udev.lib
 
     libX11
     libXScrnSaver
@@ -44,18 +32,39 @@ stdenv.mkDerivation rec {
     libXtst
     libxcb
   ]);
+  runtimeLibs = stdenv.lib.makeLibraryPath [ libudev0-shim glibc curl ];
+in stdenv.mkDerivation rec {
+  name = "insomnia-${version}";
+  version = "5.14.7";
+  src = fetchurl {
+    url = "https://github.com/getinsomnia/insomnia/releases/download/v${version}/insomnia_${version}_amd64.deb";
+    sha256 = "1y6bn9kaxxplzyv7jjrcsfkrjnivjqdk5mbdp8vz32hv2bmdvzzy";
+  };
+
+  nativeBuildInputs = [ dpkg ];
+
+  buildInputs = [ makeWrapper ];
+
+  unpackPhase = "dpkg-deb -x $src .";
 
   installPhase = ''
-    mkdir -p $out
+    mkdir -p $out/lib
 
     mv opt/Insomnia/* $out/
+    mv $out/*.so $out/lib/
+  '';
 
-    for lib in libnode.so libffmpeg.so; do
-      patchelf --set-rpath "$out:$out:${ldPath}" $out/$lib
+  preFixup = ''
+    for lib in $out/lib/*.so; do
+      patchelf --set-rpath "$out/lib:${libPath}" $lib
     done
 
-    patchelf --set-interpreter $(cat $NIX_CC/nix-support/dynamic-linker) \
-             --set-rpath "$out:$out:${ldPath}" \
-             $out/insomnia
+    for bin in $out/insomnia; do
+      patchelf --set-interpreter $(cat $NIX_CC/nix-support/dynamic-linker) \
+               --set-rpath "$out/lib:${libPath}" \
+               $bin
+    done
+
+    wrapProgram "$out/insomnia" --prefix LD_LIBRARY_PATH : ${runtimeLibs}
   '';
 }
