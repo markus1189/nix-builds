@@ -26,6 +26,8 @@ stdenv.mkDerivation rec {
     sqlite
     utillinux
     nspr
+    libpulseaudio
+    libGL
   ] ++ (with xorg; [
     libXdamage
     libX11
@@ -51,7 +53,6 @@ stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out/share/zoom $out/bin
     mv * $out/share/zoom/
-
   '';
 
   preFixup = ''
@@ -74,7 +75,16 @@ stdenv.mkDerivation rec {
     ln -s $out/share/zoom/zoom $out/bin/zoom
 
     for bin in $out/bin/*; do
-      wrapProgram $bin --set QT_XKB_CONFIG_ROOT "${xorg.xkeyboardconfig}/share/X11/xkb"
+      wrapProgram $bin \
+        --set QT_XKB_CONFIG_ROOT "${xorg.xkeyboardconfig}/share/X11/xkb"
     done
   '';
+
+    meta = with stdenv.lib; {
+    homepage = https://zoom.us/;
+    description = "Video Conferencing and Web Conferencing Service";
+    license = stdenv.lib.licenses.unfree;
+    platforms = [ "x86_64-linux" ];
+    maintainers = with maintainers; [ markus1189 ];
+  };
 }
